@@ -1,70 +1,154 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Button,
+  StatusBar,
+  StyleSheet,
+  FlatList,
+  ScrollView,
+  VirtualizedList,
+  ActivityIndicator,
+  TouchableOpacity,
+} from "react-native";
+import React, { useEffect, useState } from "react";
+import { router } from "expo-router";
+import Search from "@/components/Search";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import Header from "@/components/Header";
+import axios from "axios";
+import Categories from "@/components/Categories";
+import CategoryItem from "@/components/CategoryItem";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
+import ProductsList from "@/components/ProductsList";
+import { Image } from "react-native";
+import { AntDesign } from "@expo/vector-icons";
+export type CategoriesType =
+  | {
+      id: number | string;
+      creationAt: string;
+      image: string;
+      name: string;
+      updatedAt: string;
+    }
+  | undefined;
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export type ProductType = {
+  id: number;
+  title: string;
+  price: number;
+  description: string;
+  category: {
+    id: string;
+    name: string;
+    image: string;
+  };
+  images: string[];
+};
 
-export default function HomeScreen() {
+export default function Index() {
+  const [categories, setCategories] = useState<CategoriesType[]>([]);
+  const [productList, setProductList] = useState<ProductType[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [offsetProduct, setOffsetProduct] = useState(0);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  console.log("offset products", offsetProduct);
+  //console.log("offset categories", offset);
+
+  async function loadMoreProduct() {
+    if (!loadingProducts) {
+      setLoadingProducts(true); // Start loading
+      try {
+        const res = await axios.get(
+          `https://api.escuelajs.co/api/v1/products?offset=${offsetProduct}&limit=10`
+        );
+
+        setProductList([...productList, ...res.data]); // Append data correctly
+        setLoadingProducts(false); // Stop loading
+      } catch (error) {
+        console.log(error);
+        setLoadingProducts(false);
+      }
+    }
+  }
+
+  async function loadMoreCategories() {
+    if (!loading) {
+      setLoading(true);
+
+      try {
+        const res = await axios.get(
+          `https://api.escuelajs.co/api/v1/categories?offset=${offset}&limit=10`
+        );
+
+        setCategories((prevCategories) => [...prevCategories, ...res.data]); // Append new categories
+        setLoading(false);
+      } catch (error) {
+        console.log(error);
+        setLoading(false);
+      }
+    }
+  }
+
+  const handleOffsetChange = () => {
+    setOffset(offset + 10);
+    console.log("load more categories");
+  };
+
+  const handleOffsetProductChange = () => {
+    setOffsetProduct(offsetProduct + 10);
+    console.log("load more...");
+  };
+
+  //fetch fakestore api
+  useEffect(() => {
+    loadMoreCategories();
+  }, [offset]);
+
+  useEffect(() => {
+    loadMoreProduct();
+  }, [offsetProduct]);
+
+  // console.log("Product list", productList);
+  // console.log("categories", categories);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <SafeAreaView style={styles.container}>
+      <View>
+        <View className="mb-10">
+          <Header />
+          <Search />
+        </View>
+
+        <FlatList
+          className="flex-row mb-12"
+          data={categories}
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => <CategoryItem data={item} />}
+          onEndReached={handleOffsetChange}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={loading ? <ActivityIndicator /> : null}
+          keyExtractor={(item, index) => `${item?.id.toString() || index}`} // Ensure to provide a unique key
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+
+        <ProductsList
+          data={productList}
+          loading={loadingProducts}
+          handleOffsetProductChange={handleOffsetProductChange}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    paddingHorizontal: 12,
   },
 });
